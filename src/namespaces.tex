@@ -1,0 +1,29 @@
+%!TEX root = ts.tex
+
+\rSec0[namespaces]{Namespaces and headers}
+
+\pnum
+The components described in this document are experimental and not part of the
+\Cpp standard library. All components described in this document are declared in
+namespace \tcode{std::experimental::fiber} or a sub-namespace thereof unless
+otherwise specified. The headers described in this document shall import the
+contents of \tcode{std::experimental::fiber} into
+\tcode{std::experimental::fiber} as if by:
+
+\begin{codeblock}
+namespace std {
+  namespace experimental {
+      namespace fiber {
+      inline namespace v1 {}
+    }
+  }
+}
+\end{codeblock}
+
+\pnum
+Unless otherwise specified, references to other entities described in this
+document are assumed to be qualified with \tcode{std::experimental::fiber},
+references to entities described in the \Cpp standard are assumed to be
+qualified with \tcode{std::}.
+
+

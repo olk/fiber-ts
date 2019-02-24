@@ -1,0 +1,29 @@
+%!TEX root = ts.tex
+
+\rSec0[defs]{Terms and definitions}
+
+\setcounter{section}{1}
+\setcounter{tocdepth}{0}
+
+\setcounter{tocdepth}{1}
+
+No terms and definitions are listed in this document.
+
+ISO and IEC maintain terminological databases for use in standardization at
+the following addresses:
+\begin{itemize}
+    \item ISO Online browsing platform: available at \url{https://www.iso.org/obp}
+    \item IEC Electropedia: available at \url{http://www.electropedia.org}
+\end{itemize}
+
+\indexdefn{synchronous operation}%
+\definition{synchronous operation}{defs.sync.op}
+operation where control is not returned until the operation completes
+
+\indexdefn{asynchronous operation}%
+\definition{asynchronous operation}{defs.async.op}
+operation where control is returned immediately without waiting for the operation to complete
+  
+\enternote
+Multiple asynchronous operations may be executed concurrently.
+\exitnote
