@@ -1,0 +1,449 @@
+\rSec0[fiber]{API}
+
+\indexlibrary{\idxhdr{experimental/fiber}}
+\rSec1[fiber.synop]{Header \tcode{<experimental/fiber>} synopsis}
+
+\begin{codeblock}
+namespace std {
+namespace experimental {
+namespace fiber {
+inline namespace v1 {
+
+class fiber_context;
+
+class unwind_exception;
+
+void unwind_fiber(fiber_context&& other);
+
+} // namespace v1
+} // namespace fiber
+} // namespace experimental
+} // namespace std
+\end{codeblock}
+
+\rSec1[fiber.ctx]{Class \tcode{fiber_context}}
+
+\indexlibrary{\idxcode{fiber_context}}
+\pnum
+Class \tcode{fiber_context} represents a lightweight thread of execution.
+
+\begin{codeblock}
+namespace std {
+namespace experimental {
+namespace fiber {
+inline namespace v1 {
+
+class fiber_context {
+public:
+    fiber_context() noexcept;
+
+    template<typename Fn>
+    explicit fiber_context(Fn&& fn);
+
+    ~fiber_context();
+
+    fiber_context(fiber_context&& other) noexcept;
+    fiber_context& operator=(fiber_context&& other) noexcept;
+    fiber_context(const fiber_context& other) noexcept = delete;
+    fiber_context& operator=(const fiber_context& other) noexcept = delete;
+
+    fiber_context resume() &&;
+    template<typename Fn>
+    fiber_context resume_with(Fn&& fn) &&;
+    fiber_context resume_from_any_thread() &&;
+    template<typename Fn>
+    fiber_context resume_from_any_thread_with(Fn&& fn) &&;
+
+    bool can_resume() noexcept;
+    bool can_resume_from_any_thread() noexcept;
+
+    explicit operator bool() const noexcept;
+    void swap(fiber_context& other) noexcept;
+};
+
+} // namespace v1
+} // namespace fiber
+} // namespace experimental
+} // namespace std
+\end{codeblock}
+
+
+\rSec2[fiber.ctx.cons]{\tcode{fiber_context} constructors}
+
+\indexlibrary{\idxcode{fiber_context}!constructor}
+\begin{itemdecl}
+fiber_context() noexcept
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects Constructs an object of class \tcode{fiber_context} which is an invalid \fiber.\\
+\postconditions \tcode{!*this}
+\end{itemdescr}
+
+\indexlibrary{\idxcode{fiber_context}!constructor}
+\begin{itemdecl}
+template<typename Fn>
+explicit fiber_context(Fn&& fn)
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+The constructor takes an invocable (function, lambda, object with \op) as
+argument. The invocable must have signature as described in
+\nameref{solution_gpub}.\\
+This constructor template shall not participate in overload resolution unless
+\tcode{Fn} is \emph{LvalueCallable} (23.14.13.2) for the argument type
+\tcode{std::fiber_context\&\&} and the return type \fiber.\\
+\begin{note}The entry-function \tcode{fn} is \emph{not} immediately entered. The
+stack and any other necessary resources are created on construction, but
+\tcode{fn} is not entered until \resume, \resumewith, \xtresume or
+\xtresumewith is called.\end{note}\\
+\begin{note}The entry-function \tcode{fn} passed to \fiber will be passed a
+synthesized \fiber instance representing the suspended caller of \resume,
+\resumewith, \xtresume or \xtresumewith.\end{note}
+\end{itemdescr}
+
+\indexlibrary{\idxcode{fiber_context}!constructor}
+\begin{itemdecl}
+fiber_context(fiber_context&& other) noexcept
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+moves underlying state to new \fiber\\
+\postconditions \tcode{!*this} if \tcode{!other} before move; otherwise
+\tcode{*this} and \tcode{!other}
+\end{itemdescr}
+
+\indexlibrary{\idxcode{fiber_context}!constructor}
+\begin{itemdecl}
+fiber_context(const fiber_context& other)=delete
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+copy constructor deleted
+\end{itemdescr}
+
+
+
+\rSec2[fiber.ctx.dtor]{\tcode{fiber_context} destructor}
+
+\indexlibrary{\idxcode{fiber_context}!destructor}
+\begin{itemdecl}
+~fiber_context()
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+Destroys a \fiber instance. If this instance represents a fiber of execution
+(\tcode{*this} returns \tcode{true}), then the fiber of execution is destroyed
+too. Specifically, the stack is unwound by throwing \unwindex.\\
+\begin{note}In a program in which exceptions are thrown, it is prudent to code a
+fiber's \entryfn\xspace with a last-ditch \tcode{catch (...)} clause:
+in general, exceptions must \emph{not} leak out of the \entryfn. However, since
+stack unwinding is implemented by throwing an exception, a correct \entryfn
+\tcode{try} statement must also \tcode{catch (std::unwind_exception const\&)}
+and rethrow it.\end{note}
+\end{itemdescr}
+
+
+
+\rSec2[fiber.ctx.assign]{\tcode{fiber_context} assignment}
+
+\indexlibrary{\idxcode{fiber_context}!equalop}
+\begin{itemdecl}
+fiber_context& operator=(fiber_context&& other) noexcept
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+assigns the state of \tcode{other} to \tcode{*this} using move semantics\\
+\returns \tcode{*this}\\
+\postconditions \tcode{!*this} if \tcode{!other} before move; otherwise
+\tcode{*this} and \tcode{!other}
+\end{itemdescr}
+
+\indexlibrary{\idxcode{fiber_context}!equalop}
+\begin{itemdecl}
+fiber_context& operator=(const fiber_context& other)=delete
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+copy assignment operator deleted
+\end{itemdescr}
+
+
+
+\rSec2[fiber.ctx.modifiers]{\tcode{fiber_context} modifiers}
+
+\indexlibrarymember{swap}{context}
+\begin{itemdecl}
+    void swap(fiber_context& other) noexcept
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\effects Interchanges the targets of \tcode{*this} and \tcode{other}.
+\end{itemdescr}
+
+
+
+\rSec2[fiber.ctx.switch]{\tcode{fiber_context} switch}
+
+\indexlibrarymember{resume}{context}%
+\begin{itemdecl}
+fiber_context resume() &&
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\preconditions \tcode{*this} an if \canxtresume would return \tcode{false},
+\currthread is the same as \lastthread\\
+\effects suspends the active fiber, resumes fiber \tcode{*this}\\
+\returns the returned instance represents the fiber that has been suspended in
+order to resume the current fiber\\
+\postcondition \tcode{!*this} and \currthread is the same as \lastthread\\
+\throws \unwindex when, while suspended, the \fiber instance representing the
+suspended fiber is destroyed
+\end{itemdescr}
+
+\indexlibrarymember{resume_with}{context}%
+\begin{itemdecl}
+template<typename Fn>
+fiber_context resume_with(Fn&& fn) &&
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\preconditions \tcode{*this)} an if \canxtresume would return \tcode{false},
+\currthread is the same as \lastthread\\
+\effects Suspends the active fiber, resumes fiber \tcode{*this} but calls
+\tcode{fn()} in the resumed fiber (as if called by the suspended function).
+\tcode{fn} is a invocable injected into resumed fiber.\\
+These member function templates shall not participate in overload resolution
+unless \tcode{Fn} is \emph{LvalueCallable} (23.14.13.2) for the argument type
+\tcode{std::fiber_context\&\&} and the return type \fiber.\\
+\returns the returned instance represents the fiber that has been suspended in
+order to resume the current fiber\\
+\postcondition \tcode{!*this}\\
+\throws \unwindex when, while suspended, the \fiber instance representing the
+suspended fiber is destroyed
+\end{itemdescr}
+
+\indexlibrarymember{resume_from_any_thread}{context}%
+\begin{itemdecl}
+fiber_context resume_from_any_thread() &&
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\preconditions \tcode{*this} an if \canxtresume would return \tcode{false},
+\currthread is the same as \lastthread\\
+\effects suspends the active fiber, resumes fiber \tcode{*this}\\
+\returns the returned instance represents the fiber that has been suspended in
+order to resume the current fiber\\
+\postcondition \tcode{!*this} and \currthread is the same as \lastthread\\
+\throws \unwindex when, while suspended, the \fiber instance representing the
+suspended fiber is destroyed
+\end{itemdescr}
+
+\indexlibrarymember{resume_from_any_thread_with}{context}%
+\begin{itemdecl}
+template<typename Fn>
+fiber_context resume_from_any_thread_with(Fn&& fn) &&
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\preconditions \tcode{*this} an if \canxtresume would return \tcode{false},
+\currthread is the same as \lastthread\\
+\effects Suspends the active fiber, resumes fiber \tcode{*this} but calls
+\tcode{fn()} in the resumed fiber (as if called by the suspended function).
+\tcode{fn} is a invocable injected into resumed fiber.\\
+These member function templates shall not participate in overload resolution
+unless \tcode{Fn} is \emph{LvalueCallable} (23.14.13.2) for the argument type
+\tcode{std::fiber_context\&\&} and the return type \fiber.\\
+\returns the returned instance represents the fiber that has been suspended in
+order to resume the current fiber\\
+\postcondition \tcode{!*this}\\
+\throws \unwindex when, while suspended, the \fiber instance representing the
+suspended fiber is destroyed
+\end{itemdescr}
+
+\resume, \resumewith, \xtresume or \xtresumewith can throw \emph{any} exception
+if, while suspended:
+\begin{itemize}
+    \item some other fiber calls \resumewith or \xtresumewith to resume this
+        suspended fiber
+    \item the function \tcode{fn} passed to \resumewith or \xtresumewith -- or
+        some function called by \tcode{fn} -- throws an exception
+\end{itemize}
+Any exception thrown by the function \tcode{fn} passed to \resumewith or
+\xtresumewith, or any function called by \tcode{fn}, is thrown in the fiber
+referenced by \tcode{*this} rather than in the fiber of the caller of
+\resumewith or \xtresumewith.
+
+The intent of the distinction between \resume and \xtresume, as between
+\resumewith and \xtresumewith, is both for validation and for code auditing. If
+an application only ever calls \resume and \resumewith, no fiber will ever be
+resumed on a thread other than the one on which it was initially resumed.\\
+
+The intent of the names \xtresume and \xtresumewith is to clarify the direction
+in which cross-thread resumption occurs. \Currthread always directly resumes a
+suspended fiber: control is passed into the suspended fiber, and the
+currently-running fiber suspends. These method names mean that the fiber
+represented by \tcode{*this} will be resumed whether or not it was last resumed
+on \currthread.\\
+
+\resume, \resumewith, \xtresume and \xtresumewith preserve the execution context
+of the calling fiber. Those data are restored if the calling fiber is resumed.\\
+A suspended \tcode{fiber\_context} can be destroyed. Its resources will be
+cleaned up at that time.\\
+The returned \tcode{fiber\_context} indicates via \tcode{*this} whether the
+previous active fiber has terminated (returned from \entryfn).\\
+Because \resume, \resumewith, \xtresume and \xtresumewith invalidate the
+instance on which they are called, \emph{no valid \fiber instance ever
+represents the currently-running fiber.} In order to express the invalidation
+explicitly, these methods are rvalue-reference qualified.\\
+When calling any of these methods, it is conventional to replace the
+newly-invalidated instance -- the instance on which the method was was called
+-- with the new instance returned by that call. This helps to avoid subsequent
+inadvertent attempts to resume the old, invalidated instance.
+\newline
+An injected function \tcode{fn()} must have signature
+\tcode{std::fiber_context fn(std::fiber_context\&\&)}. It will be passed a
+synthesized \fiber instance representing the suspended caller of \resumewith or
+\xtresumewith. The \fiber instance returned by \tcode{fn()} is, in turn, used as
+the return value for the suspended function: \resume, \resumewith, \xtresume or
+\xtresumewith.
+
+
+
+\rSec2[fiber.ctx.ops]{\tcode{fiber_context} operations}
+
+\indexlibrarymember{can_resume_from_any_thread}{context}%
+\begin{itemdecl}
+bool can_resume_from_any_thread() noexcept
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+query whether \currthread can resume the suspended \fiber instance by calling
+\xtresume or \xtresumewith. The implementation must return \tcode{false} if the
+suspended \fiber instance represents a fiber with a system-provided stack, and
+\currthread is not that thread.\\
+\returns \tcode{false} if \tcode{!*this} or if the stack used by the fiber was
+provided by the operating system, and \currthread is not that thread; otherwise
+\tcode{true}.\\
+\begin{note}When \tcode{main()}, or the entry-function of a \thread, or any
+function directly called by these, is suspended, a \fiber instance represents
+that suspended fiber. You may resume that suspended fiber
+\emph{on the same thread} using any of \resume, \resumewith, \xtresume or
+\xtresumewith. Attempting to resume that suspended fiber from any other thread
+is Undefined Behavior. \canxtresume returns \tcode{true} if \currthread is the
+same as \lastthread, or if the \fiber instance represents a fiber explicitly
+created by \fiber's constructor. \canxtresume is not marked \tcode{const}
+because in at least one implementation, it requires an internal context switch.
+\end{note}
+\end{itemdescr}
+
+\indexlibrarymember{can_resume}{context}%
+\begin{itemdecl}
+bool can_resume() noexcept
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns \tcode{true} if \currthread is the same as \lastthread, or if
+\tcode{*this} has not yet been resumed. When \canresume returns \tcode{true},
+the \fiber instance may be resumed by \resume, \resumewith, \xtresume or
+\xtresumewith.\\
+\begin{note} \canresume is not marked \tcode{const} because in at least one
+implementation, it requires an internal context switch.\end{note}
+\end{itemdescr}
+
+
+
+\rSec2[fiber.ctx.validity]{\tcode{fiber_context} validity}
+
+\indexlibrarymember{operator bool}{context}%
+\begin{itemdecl}
+explicit operator bool() const noexcept
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\returns \tcode{true} if \tcode{*this} represents a fiber of execution,
+\tcode{false} otherwise.\\
+A \fiber instance might not represent a valid fiber for any of a number of
+reasons.
+\begin{itemize}
+    \item It might have been default-constructed.
+    \item It might have been moved from.
+    \item It might already have been resumed -- calling \resume, \resumewith,
+          \xtresume or\\
+          \xtresumewith invalidates the instance.
+    \item The \entryfn\xspace might have voluntarily terminated the fiber by
+          returning.
+\end{itemize}
+The essential points:
+\begin{itemize}
+    \item Regardless of the number of \fiber declarations, exactly one\\
+          \fiber instance represents each suspended fiber.
+    \item No \fiber instance represents the currently-running fiber.
+\end{itemize}
+\end{itemdescr}
+
+
+
+\rSec1[fiber.unwind]{\tcode{fiber_context} unwinding}
+
+\rSec2[fiber.unwind.func]{Function \tcode{unwind_fiber()}}
+
+\indexlibrary{\idxcode{unwind_fiber}}
+terminate the current running fiber, switching to the fiber represented by the
+passed \fiber. This is like returning that \fiber from the \entryfn, but may be
+called from any function on that fiber.
+
+\begin{itemdecl}
+[[ noreturn ]] void unwind_fiber(fiber_context&& other)
+\end{itemdecl}
+
+\begin{itemdescr}
+\pnum
+\preconditions \tcode{*other}\\
+\returns does not return\\
+\throws \unwindex\\
+Throws \unwindex, binding the passed \fiber. The running fiber's first stack
+entry catches \unwindex, extracts the bound \fiber and terminates the current
+fiber by returning that \fiber. \tcode{other} is the \fiber to which to switch
+once the current fiber has terminated
+\end{itemdescr}
+
+
+
+\rSec2[fiber.unwind.ex]{Class \tcode{unwind_exception}}
+
+\indexlibrary{\idxcode{unwind_exception}}
+\tcode{unwind_exception} is the exception used to unwind the stack referenced by
+a \fiber being destroyed.
+It is thrown by \unwindfib. \unwindex binds a \fiber referencing the fiber to
+which control should be passed once the current fiber is unwound and destroyed.
+
+\begin{codeblock}
+namespace std {
+namespace experimental {
+namespace fiber {
+inline namespace v1 {
+
+class unwind_exception {
+};
+
+} // namespace v1
+} // namespace fiber
+} // namespace experimental
+} // namespace std
+\end{codeblock}
